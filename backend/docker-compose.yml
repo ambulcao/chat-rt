@@ -1,0 +1,22 @@
+name: pocket-js-server
+
+services:
+  postgres:
+    image: bitnami/postgresql:13.16.0
+    container_name: my_postgres_container
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_USER=docker
+      - POSTGRES_PASSWORD=docker
+      - POSTGRES_DB=chatrt
+    volumes:
+      - my_postgres_data:/var/lib/postgres/data
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379/6379"
+    
+volumes:
+  my_postgres_data:
