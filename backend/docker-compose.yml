@@ -8,7 +8,7 @@ services:
       - '5432:5432'
     environment:
       - POSTGRES_USER=docker
-      - POSTGRES_PASSWORD=root
+      - POSTGRES_PASSWORD=docker
       - POSTGRES_DB=chatrt
     volumes:
       - my_postgres_data:/var/lib/postgres/data
