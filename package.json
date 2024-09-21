@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@types/graphql-upload": "^16.0.7"
+  }
+}
