@@ -9,20 +9,24 @@ import { join } from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
-  imports: [AuthModule, UserModule,
+  imports: [
+    AuthModule, 
+    UserModule,
     GraphQLModule.forRootAsync({
       imports: [ConfigModule, AppModule],
       inject: [ConfigService],
       driver: ApolloDriver,
-      useFactory: async (
-        configService: ConfigService,
-      ) => {
+      useFactory: async (configService: ConfigService) => {
         return {
           playground: true,
           autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
           sortSchema: true,
-        }
-      }
+          uploads: {
+            maxFileSize: 10000000000, // 10 GB
+            maxFiles: 1,
+          },
+        };
+      },
     }),
     ConfigModule.forRoot({
       isGlobal: true,
