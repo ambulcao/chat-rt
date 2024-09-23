@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -7,10 +7,11 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver } from '@nestjs/apollo';
 import { join } from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import fileUpload from 'express-fileupload'; 
 
 @Module({
   imports: [
-    AuthModule, 
+    AuthModule,
     UserModule,
     GraphQLModule.forRootAsync({
       imports: [ConfigModule, AppModule],
@@ -21,10 +22,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
           playground: true,
           autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
           sortSchema: true,
-          uploads: {
-            maxFileSize: 10000000000, // 10 GB
-            maxFiles: 1,
-          },
         };
       },
     }),
@@ -35,4 +32,15 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Configura o middleware de file upload
+    consumer
+      .apply(
+        fileUpload({
+          limits: { fileSize: 10 * 1024 * 1024 }, // Limite de 10MB
+        }),
+      )
+      .forRoutes('*');
+  }
+}
