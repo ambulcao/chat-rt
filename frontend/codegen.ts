@@ -7,6 +7,7 @@
         generates: {
             "./src/gql/": {
                 preset: "client",
+                plugins: ["typescript"],
             },
         },
     }

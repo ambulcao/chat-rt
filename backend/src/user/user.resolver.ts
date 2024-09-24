@@ -18,9 +18,13 @@ export class UserResolver {
     @Args('fullname') fullname: string,
     @Context() context: { req: Request },
   ) {
-    const file = context.req.files?.file; // Aqui captura o arquivo
+    // Aqui captura o arquivo
+    const file = context.req.files?.file; 
+
+    // Verifique se o arquivo foi enviado
     const imageUrl = file ? await this.storeImageAndGetUrl(file) : null;
     const userId = context.req.user.sub;
+
     return this.userService.updateProfile(userId, fullname, imageUrl);
   }
 
@@ -28,8 +32,11 @@ export class UserResolver {
     const uniqueFilename = `${uuidv4()}_${file.name}`;
     const imagePath = join(process.cwd(), 'public', uniqueFilename);
     const imageUrl = `${process.env.APP_URL}/${uniqueFilename}`;
-    const readStream = file.data;
-    createWriteStream(imagePath).write(readStream);
+
+    const writeStream = createWriteStream(imagePath);    
+    writeStream.write(file.data);
+    writeStream.end();
+    
     return imageUrl;
   }
 }
