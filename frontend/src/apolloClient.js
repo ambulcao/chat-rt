@@ -1,15 +1,36 @@
-import { ApolloClient, InMemoryCache, ApolloLink, from } from '@apollo/client';
+import { ApolloClient, InMemoryCache, ApolloLink, from, Observable, split, gql } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
 import { setContext } from '@apollo/client/link/context';
 import { WebSocketLink } from '@apollo/client/link/ws';
 import { getMainDefinition } from '@apollo/client/utilities';
-import { split } from '@apollo/client/link/core';
-import { Kind } from 'graphql';
+
+// Função para renovar o token de autenticação
+async function refreshToken(client) {
+  try {
+    const { data } = await client.mutate({
+      mutation: gql`
+        mutation RefreshToken {
+          refreshToken
+        }
+      `,
+    });
+    const newAccessToken = data?.refreshToken;
+    if (!newAccessToken) {
+      throw new Error("Novo token de acesso não recebido.");
+    }
+    return `Bearer ${newAccessToken}`;
+  } catch (err) {
+    throw new Error("Erro ao obter novo token de acesso");
+  }
+}
+
+let retryCount = 0;
+const maxRetry = 3;
 
 // URL do servidor GraphQL
 const httpLink = new ApolloLink((operation, forward) => {
   operation.setContext({
-    uri: 'http://localhost:3000/graphql', // Atualizar a URL do GraphQL
+    uri: 'http://localhost:3000/graphql',
     credentials: 'include',
   });
   return forward(operation);
@@ -42,25 +63,40 @@ const splitLink = split(
   ({ query }) => {
     const definition = getMainDefinition(query);
     return (
-      definition.kind === Kind.OPERATION_DEFINITION &&
+      definition.kind === "OperationDefinition" &&
       definition.operation === 'subscription'
     );
   },
   wsLink,
-  from([authLink, httpLink]) // HTTP para queries e mutações
+  from([authLink, httpLink])
 );
 
-// Link para manipulação de erros
-const errorLink = onError(({ graphQLErrors, networkError }) => {
+// Link para manipulação de erros com lógica de reautenticação
+const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
   if (graphQLErrors) {
     for (const err of graphQLErrors) {
-      if (err.extensions?.code === 'UNAUTHENTICATED') {
-        // Lógica para manipular erros de autenticação
-        console.log('Usuário não autenticado');
+      if (err.extensions?.code === 'UNAUTHENTICATED' && retryCount < maxRetry) {
+        retryCount++;
+        return new Observable(observer => {
+          refreshToken(client)
+            .then((token) => {
+              operation.setContext((previousContext) => ({
+                headers: {
+                  ...previousContext.headers,
+                  authorization: token,
+                },
+              }));
+              const forward$ = forward(operation);
+              forward$.subscribe(observer);
+            })
+            .catch((error) => observer.error(error));
+        });
       }
+
       console.error(`[GraphQL error]: Message: ${err.message}, Location: ${err.locations}, Path: ${err.path}`);
     }
   }
+
   if (networkError) {
     console.error(`[Network error]: ${networkError}`);
   }
